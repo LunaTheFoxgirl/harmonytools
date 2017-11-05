@@ -19,14 +19,13 @@ type DoneFunc func()
 // When all the shots have been fire DoneFunc will be called.
 type DataCannon struct {
     buffers		LinkedList
-	waiter		bool
 	mtx			sync.Mutex
 }
 
 // Load loads a burst in to the data cannon.
 func (c *DataCannon) Load(burst LinkedList) {
-	c.mtx.Lock();
-	defer c.mtx.Unlock();
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 	if !c.waiter {
     	c.buffers.PushBack(burst)
     }
@@ -35,7 +34,8 @@ func (c *DataCannon) Load(burst LinkedList) {
 // Fire fires a single burst of data to X amount of goroutines with the specified delegate.
 // omitting the times variable will make the cannon only fire once.
 func (c *DataCannon) Fire(fireDelegate CannonFire, doneFunc DoneFunc, times ...int) {
-	c.waiter = true
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
     t := 1
     if len(times) > 0 {
         t = times[0]
@@ -50,5 +50,4 @@ func (c *DataCannon) Fire(fireDelegate CannonFire, doneFunc DoneFunc, times ...i
         c.buffers.Remove(0)
     }
     doneFunc()
-    c.waiter = false
 }
