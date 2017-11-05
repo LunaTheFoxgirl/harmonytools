@@ -1,6 +1,9 @@
 package collections
 
-import "reflect"
+import (
+	"reflect"
+	"sync"
+)
 
 // CannonFire is a function that the cannon disposes to during a fire session.
 type CannonFire func(reflect.Type, interface{})
@@ -15,17 +18,24 @@ type DoneFunc func()
 // Remember to mutex lock these if you do alot of bursts!
 // When all the shots have been fire DoneFunc will be called.
 type DataCannon struct {
-    buffers LinkedList
+    buffers		LinkedList
+	waiter		bool
+	mtx			sync.Mutex
 }
 
 // Load loads a burst in to the data cannon.
 func (c *DataCannon) Load(burst LinkedList) {
-    c.buffers.PushBack(burst)
+	c.mtx.Lock();
+	defer c.mtx.Unlock();
+	if !c.waiter {
+    	c.buffers.PushBack(burst)
+    }
 }
 
 // Fire fires a single burst of data to X amount of goroutines with the specified delegate.
 // omitting the times variable will make the cannon only fire once.
 func (c *DataCannon) Fire(fireDelegate CannonFire, doneFunc DoneFunc, times ...int) {
+	c.waiter = true
     t := 1
     if len(times) > 0 {
         t = times[0]
@@ -40,4 +50,5 @@ func (c *DataCannon) Fire(fireDelegate CannonFire, doneFunc DoneFunc, times ...i
         c.buffers.Remove(0)
     }
     doneFunc()
+    c.waiter = false
 }
